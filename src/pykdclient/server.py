@@ -1,7 +1,10 @@
 """Waits for a serial TCP connection from a qemu instance and hands it off to a debugger."""
+
+# ruff: noqa: T201 `print` found
+
 import socketserver
 
-import debug_connection
+from pykdclient import debug_connection
 
 
 class _DebuggeeHandler(socketserver.StreamRequestHandler):
@@ -9,7 +12,7 @@ class _DebuggeeHandler(socketserver.StreamRequestHandler):
 
     def setup(self) -> None:
         super().setup()
-        self.debugger = self.server.debugger
+        self.debugger = self.server.debugger  # type: ignore
         client = debug_connection.DebugConnection(self.client_address)
         client.handle_socket(self.connection)
 

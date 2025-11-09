@@ -1,0 +1,90 @@
+[build-system]
+requires = [
+    "hatchling>=1.27.0",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "pykdclient"
+dynamic = ["version"]
+description = 'Basic tool to capture Microsoft Xbox (original) debug messages sent via the KD protocol.'
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE.md" }
+keywords = ["xbox", "xemu"]
+authors = [
+    { name = "Erik Abair", email = "erik.abair@bearbrains.work" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Documentation",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+]
+
+[project.urls]
+Documentation = "https://github.com/abaire/pykdclient#readme"
+Issues = "https://github.com/abaire/pykdclient/issues"
+Source = "https://github.com/abaire/pykdclient"
+
+[project.scripts]
+pykdclient = "pykdclient.windpl:entrypoint"
+
+[tool.hatch.version]
+path = "src/pykdclient/__about__.py"
+
+[tool.hatch.envs.types]
+type = "virtual"
+path = ".venv-mypy"
+extra-dependencies = [
+    "mypy>=1.14.1",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/pykdclient}"
+
+[tool.mypy]
+disable_error_code = ["import-untyped", "import-not-found"]
+
+[tool.coverage.run]
+source_pkgs = ["pykdclient"]
+branch = true
+parallel = true
+omit = [
+    "src/pykdclient/__about__.py",
+]
+
+[tool.coverage.paths]
+pykdclient = ["src/pykdclient"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "no cov",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pykdclient"]
+
+[tool.hatch.envs.default]
+type = "virtual"
+path = "venv"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+
+[tool.hatch.envs.hatch-test]
+type = "virtual"
+path = "venv"
+extra-dependencies = [
+    "pytest",
+]

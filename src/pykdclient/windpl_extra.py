@@ -38,6 +38,10 @@
 # WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # def injectSUSShellcode(title, message):
 #     userbase  = 0x7ffe0800
@@ -373,7 +377,8 @@ def logical2physical(logical):
     #             return ( $phys | offset );    #restore byte offset
     #                 printf "Invalid PTE found for va %08x: %08x\n", $logical,
     #       unpack( "I", $buf )
-    print("TODO: IMPLEMENT LOGICAL2PHYSICAL")
+    del logical
+    logger.warning("TODO: IMPLEMENT LOGICAL2PHYSICAL")
     return 0
 
 

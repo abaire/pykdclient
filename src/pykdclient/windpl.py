@@ -5,7 +5,7 @@
 # Copyright (C) 2013 espes
 # Copyright (C) 2017 Jannik Vogel
 #
-# This program is free software subject to the terms of the GNU General
+# This program is free software subject to the terms of the GNU Generalhatch fmt
 # Public License.  You can use, copy, redistribute and/or modify the
 # program under the terms of the GNU General Public License as published
 # by the Free Software Foundation; either version 3 of the License, or
@@ -41,15 +41,15 @@
 # WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+# ruff: noqa: S104 Possible binding to all interfaces
+
 import argparse
 import logging
 import os
 import pathlib
 import sys
 
-import debug_context
-import debug_connection
-import server
+from pykdclient import debug_connection, debug_context, server
 
 
 def _create_fifos(named_pipe):
@@ -61,7 +61,8 @@ def _create_fifos(named_pipe):
             return
 
         if not path.is_fifo():
-            raise Exception(f"'{path.name}' already exists but is not a fifo.")
+            msg = f"'{path.name}' already exists but is not a fifo."
+            raise ValueError(msg)
 
     create(f"{named_pipe}.in")
     create(f"{named_pipe}.out")
@@ -84,7 +85,8 @@ def main(args) -> int:
     elif args.port:
         endpoint = (args.host, args.port)
     else:
-        raise RuntimeError("No supported transport method selected.")
+        msg = "No supported transport method selected."
+        raise RuntimeError(msg)
 
     connection = debug_connection.DebugConnection(endpoint)
     connection.connect()
@@ -95,55 +97,55 @@ def main(args) -> int:
     return 0
 
 
+def entrypoint():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        help="The TCP server port used by qemu.",
+    )
+
+    parser.add_argument(
+        "--host",
+        help="The IP address of the host.",
+        default="0.0.0.0",
+    )
+
+    parser.add_argument(
+        "--serve",
+        help="Act as a server (e.g., with qemu `-serial tcp:<host>:<port>`)",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "-np",
+        "--named_pipe",
+        help="The path to the named pipe used by qemu.",
+    )
+
+    parser.add_argument(
+        "-c",
+        "--create-fifo",
+        help="Creates the named pipes if they do not already exist.",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Enables verbose logging information",
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    if not args.port and not args.named_pipe:
+        parser.error("At least one of '--port' or '--named-pipe' must be given.")
+
+    return main(args)
+
+
 if __name__ == "__main__":
-
-    def _parse_args():
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument(
-            "-p",
-            "--port",
-            type=int,
-            help="The TCP server port used by qemu.",
-        )
-
-        parser.add_argument(
-            "--host",
-            help="The IP address of the host.",
-            default="0.0.0.0",
-        )
-
-        parser.add_argument(
-            "--serve",
-            help="Act as a server (e.g., with qemu `-serial tcp:<host>:<port>`)",
-            action="store_true",
-        )
-
-        parser.add_argument(
-            "-np",
-            "--named_pipe",
-            help="The path to the named pipe used by qemu.",
-        )
-
-        parser.add_argument(
-            "-c",
-            "--create-fifo",
-            help="Creates the named pipes if they do not already exist.",
-            action="store_true",
-        )
-
-        parser.add_argument(
-            "-v",
-            "--verbose",
-            help="Enables verbose logging information",
-            action="store_true",
-        )
-
-        args = parser.parse_args()
-
-        if not args.port and not args.named_pipe:
-            parser.error("At least one of '--port' or '--named-pipe' must be given.")
-
-        return args
-
-    sys.exit(main(_parse_args()))
+    sys.exit(entrypoint())

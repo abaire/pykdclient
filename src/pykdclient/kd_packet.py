@@ -40,20 +40,22 @@
 # WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+# ruff: noqa: UP031 Use format specifiers instead of percent format
+# ruff: noqa: S101 Use of `assert` detected
+# ruff: noqa: PLR2004 Magic value used in comparison
 # pylint: disable=too-many-arguments, too-many-locals
+
+from __future__ import annotations
 
 import struct
 
-import constants
-import util
+from pykdclient import constants, util
 
 
 class KDPacket:
     """Models a Kernel Debug packet."""
 
-    def __init__(
-        self, packet_leader, packet_type, packet_id, expected_checksum, payload
-    ):
+    def __init__(self, packet_leader, packet_type, packet_id, expected_checksum, payload):
         self.packet_leader = packet_leader
         self.packet_type = packet_type
         self.packet_id = packet_id
@@ -64,13 +66,15 @@ class KDPacket:
 
     def serialize(self) -> bytearray:
         """Serializes this packet into a byte array (with trailing marker)."""
-        header = struct.pack(
-            "IHHII",
-            self.packet_leader,
-            self.packet_type,
-            len(self.payload),
-            self.packet_id,
-            self.actual_checksum,
+        header = bytearray(
+            struct.pack(
+                "IHHII",
+                self.packet_leader,
+                self.packet_type,
+                len(self.payload),
+                self.packet_id,
+                self.actual_checksum,
+            )
         )
 
         ret = header
@@ -127,7 +131,7 @@ class KDPacket:
         return self.packet_leader == constants.PACKET_LEADER
 
     @property
-    def basic_log_info(self) -> [str]:
+    def basic_log_info(self) -> list[str]:
         """Returns general/common logging information about this packet."""
         return [
             "Packet leader: %08x (%s)" % (self.packet_leader, self.packet_leader_name),
@@ -137,7 +141,7 @@ class KDPacket:
             "  Checksum: %08x" % self.expected_checksum,
         ]
 
-    def get_detailed_log(self) -> [str]:
+    def get_detailed_log(self) -> list[str]:
         """Returns detailed logging information about this packet."""
         ret = self.basic_log_info
 
@@ -154,10 +158,8 @@ class KDPacket:
 
         return ret
 
-    def _log_state_manipulate(self) -> []:
-        api_number, processor_level, processor, return_status = struct.unpack(
-            "IHHI", self.payload[:12]
-        )
+    def _log_state_manipulate(self) -> list[str]:
+        api_number, processor_level, processor, return_status = struct.unpack("IHHI", self.payload[:12])
 
         ret = [
             "State Manipulate: %08x (%s)"
@@ -202,7 +204,7 @@ class KDPacket:
         return ret
 
     @staticmethod
-    def _log_version(version_payload) -> [str]:
+    def _log_version(version_payload) -> list[str]:
         assert len(version_payload) == 40
         (
             major_version,
@@ -236,7 +238,7 @@ class KDPacket:
             "Debugger data list: %x" % debugger_data_list,
         ]
 
-    def _log_state_change64(self) -> [str]:
+    def _log_state_change64(self) -> list[str]:
         (
             new_state,
             processor_level,
@@ -247,8 +249,7 @@ class KDPacket:
         ) = struct.unpack("IHHIQQ", self.payload[:32])
 
         ret = [
-            "State change: %08x (%s)"
-            % (new_state, constants.STATE_CHANGE_TABLE.get(new_state, "<unknown>")),
+            "State change: %08x (%s)" % (new_state, constants.STATE_CHANGE_TABLE.get(new_state, "<unknown>")),
             "Processor level: %04x" % processor_level,
             "Processor: %04x" % processor,
             "Num processors: %d" % num_processors,
@@ -260,9 +261,7 @@ class KDPacket:
 
         if new_state == constants.DbgKdExceptionStateChange:
             # DBGKM_EXCEPTION64
-            code, flags, record, address, parameters = struct.unpack(
-                "IIQQI", self.payload[:28]
-            )
+            code, flags, record, address, parameters = struct.unpack("IIQQI", self.payload[:28])
 
             if code in constants.STATE_CHANGE_EXCEPTIONS:
                 ret.append("*** %s " % constants.STATE_CHANGE_EXCEPTIONS[code])

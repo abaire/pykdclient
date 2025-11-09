@@ -1,13 +1,17 @@
 """Abstract connection interface for kernel debugging."""
 
+from __future__ import annotations
+
 import logging
 import os
 import pathlib
 import socket
 import struct
 
-from constants import PACKET_LEADER, CONTROL_PACKET_LEADER, PACKET_TRAILER
-import kd_packet
+from pykdclient import kd_packet
+from pykdclient.constants import CONTROL_PACKET_LEADER, PACKET_LEADER, PACKET_TRAILER
+
+logger = logging.getLogger(__name__)
 
 
 class DebugConnection:
@@ -36,25 +40,24 @@ class DebugConnection:
         self._send = self._send_socket
 
     def _connect_socket(self, host_port):
-        logging.info("Connecting to %s:%d", host_port[0], host_port[1])
+        logger.info("Connecting to %s:%d", host_port[0], host_port[1])
         self.handle_socket(socket.socket())
         self._connection_read.connect(host_port)
 
     def _connect_fifo(self, path):
         """Connects via a pair of .in and .out named pipes."""
 
-        logging.info("Connecting to FIFO at '%s'", path)
+        logger.info("Connecting to FIFO at '%s'", path)
 
         def require_fifo_exists(fifo_path):
             path_object = pathlib.Path(fifo_path)
             if not path_object.exists():
-                raise Exception(
-                    "Qemu requires two pipes with a common base name and '.in' and "
-                    "'.out' suffixes. E.g., '/tmp/foo.in' and '/tmp/foo.out'."
-                )
+                msg = "Qemu requires two pipes with a common base name and '.in' and '.out' suffixes. E.g., '/tmp/foo.in' and '/tmp/foo.out'."
+                raise ValueError(msg)
 
             if not path_object.is_fifo():
-                raise Exception(f"'{path_object.name}' is not a fifo.")
+                msg = f"'{path_object.name}' is not a fifo."
+                raise ValueError(msg)
 
         # The naming is from the perspective of qemu, so "in" is written to and "out" is read from.
         write_fifo = f"{path}.in"
@@ -73,19 +76,14 @@ class DebugConnection:
         self._recv = self._recv_fifo
         self._send = self._send_fifo
 
-    def read_packet(self) -> (kd_packet.KDPacket, bytearray):
+    def read_packet(self) -> tuple[kd_packet.KDPacket, bytearray]:
         """Reads a single KD packet from the connection."""
         packet_leader, discarded_bytes = self._read_packet_leader()
 
         buf = self.read(12)
-        (packet_type, data_size, packet_id, expected_checksum) = struct.unpack(
-            "HHII", buf
-        )
+        (packet_type, data_size, packet_id, expected_checksum) = struct.unpack("HHII", buf)
 
-        if data_size:
-            payload = self.read(data_size)
-        else:
-            payload = bytearray([])
+        payload = self.read(data_size) if data_size else bytearray([])
 
         # send ack if it's a non-control packet
         if packet_leader == PACKET_LEADER:
@@ -94,12 +92,11 @@ class DebugConnection:
             trail = self.read(1)
             # self._log("Trailer: %x", trail[0])
             if trail[0] != PACKET_TRAILER:
-                raise Exception("Invalid packet trailer 0x%x" % trail[0])
+                msg = f"Invalid packet trailer 0x{trail[0]:x}"
+                raise ValueError(msg)
 
         return (
-            kd_packet.KDPacket(
-                packet_leader, packet_type, packet_id, expected_checksum, payload
-            ),
+            kd_packet.KDPacket(packet_leader, packet_type, packet_id, expected_checksum, payload),
             discarded_bytes,
         )
 
@@ -114,7 +111,8 @@ class DebugConnection:
                 total += count
                 outbuf += buf
             else:
-                raise ConnectionResetError("Failed to read from connection.")
+                msg = "Failed to read from connection."
+                raise ConnectionResetError(msg)
 
         return outbuf
 
@@ -125,7 +123,7 @@ class DebugConnection:
             written = self._send(buffer)
             buffer = buffer[written:]
 
-    def _read_packet_leader(self) -> (int, bytearray):
+    def _read_packet_leader(self) -> tuple[int, bytearray]:
         """Reads from the connection until a valid packet leader is found.
 
         Returns (packet_leader, discarded_bytes):
@@ -148,7 +146,7 @@ class DebugConnection:
         """Receives up to `max_bytes` bytes from the connection."""
         bytes_read = os.read(self._connection_read, max_bytes)
         if len(bytes_read) == 0:
-            print("Failed to read from connection")
+            logger.warning("Failed to read from connection")
 
         return bytes_read
 
@@ -160,7 +158,7 @@ class DebugConnection:
         """Receives up to `max_bytes` bytes from the connection."""
         bytes_read = self._connection_read.recv(max_bytes)
         if len(bytes_read) == 0:
-            print("Failed to read from connection")
+            logger.warning("Failed to read from connection")
         return bytes_read
 
     def _send_socket(self, buf):

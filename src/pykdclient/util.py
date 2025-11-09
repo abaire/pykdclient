@@ -40,7 +40,14 @@
 # WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+# ruff: noqa: S101 Use of `assert` detected
+# ruff: noqa: UP031 Use format specifiers instead of percent format
+# ruff: noqa: PLR2004 Magic value used in comparison
+
+from __future__ import annotations
+
 import struct
+from typing import Any
 
 
 def substr(buf, start, length=None):
@@ -58,7 +65,7 @@ def patch_substr(buf, start, length, fmt, data=None):
     return buf[0:start] + struct.pack(fmt, data) + buf[start + length :]
 
 
-def unpack_one(fmt, data):
+def unpack_one(fmt, data) -> Any:
     """Unpacks a single type from the given data using struct.unpack format specifiers."""
     assert len(fmt) == 1
     return struct.unpack(fmt, data)[0]  # pylint: disable = no-member
@@ -71,9 +78,7 @@ def hexformat(buf):
         return None
 
     ret = "0000  "
-    offset = 0
-    for value in buf:
-        offset += 1
+    for offset, value in enumerate(buf):
         ret += "%02x " % value
         if (offset % 16) == 0 and offset < length:
             ret += "\n%04x  " % offset
@@ -94,11 +99,8 @@ def hexasc(buf):
     ascii_string = ""
     out = "0000  "
     for value in buf:
-        if isinstance(value, str):
-            codepoint = ord(value)
-        else:
-            codepoint = value
-        out += "%02x " % codepoint
+        codepoint = ord(value) if isinstance(value, str) else value
+        out += f"{codepoint:02x} "
         if 0x1F < codepoint < 0x7F:
             ascii_string += chr(codepoint)
         else:
@@ -106,7 +108,7 @@ def hexasc(buf):
         count += 1
         if (count % 16) == 0:
             if count < length:
-                out += " " + ascii_string + "\n%04x  " % count
+                out += " " + ascii_string + f"\n{count:04x}  "
             else:
                 out += " " + ascii_string + "\n"
             ascii_string = ""

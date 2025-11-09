@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Sniffer proxy to process kernel debug traffic."""
 
+# ruff: noqa: T201 `print` found
+
 # Usage:
 # 1. Start the debugger qemu instance with
 #    `-serial tcp::<debugger_port>,server,nowait`
@@ -9,6 +11,7 @@
 # 3. Start the debuggee qemu instance with
 #    `-serial tcp:<sniffer_ip>:<sniffer_port>`
 
+# ruff: noqa: S104 Possible binding to all interfaces
 # pylint: disable = too-many-arguments, too-few-public-methods, too-many-instance-attributes
 
 import argparse
@@ -18,9 +21,8 @@ import sys
 import threading
 import time
 
-import debug_connection
-import kd_packet
-from util import *  # pylint: disable = wildcard-import, unused-wildcard-import
+from pykdclient import debug_connection, kd_packet
+from pykdclient.util import hexformat
 
 
 class TeeConnection:
@@ -39,9 +41,7 @@ class TeeConnection:
 
 
 class _KDPassthroughSniffer(debug_connection.DebugConnection):
-    def __init__(
-        self, name, read_connection, write_connection, logger_semaphore, start_time
-    ):
+    def __init__(self, name, read_connection, write_connection, logger_semaphore, start_time):
         super().__init__(name)
 
         # Create a tee between the read and write connections, then use it as the
@@ -70,7 +70,7 @@ class _KDPassthroughSniffer(debug_connection.DebugConnection):
 
         self._packet_log = []
 
-    def read_packet(self) -> (kd_packet.KDPacket, bytearray):
+    def read_packet(self) -> tuple[kd_packet.KDPacket, bytearray]:
         """Reads a single KD packet from the connection and logs it."""
         packet, discarded_bytes = super().read_packet()
 
@@ -172,7 +172,7 @@ class _DebuggeeHandler(socketserver.StreamRequestHandler):
 
     def setup(self) -> None:
         super().setup()
-        self.debugger = self.server.debugger
+        self.debugger = self.server.debugger  # type: ignore
         self.sniffer = self.debugger.register_debuggee(self)
 
     def finish(self) -> None:
@@ -201,14 +201,10 @@ def main(args):
     debugger_connection = _DebuggerConnection(args.debugger_ip, args.debugger_port)
 
     print(f"Listening for debuggee at {args.sniffer_ip}:{args.sniffer_port}")
-    server = socketserver.ThreadingTCPServer(
-        (args.sniffer_ip, args.sniffer_port), _DebuggeeHandler
-    )
+    server = socketserver.ThreadingTCPServer((args.sniffer_ip, args.sniffer_port), _DebuggeeHandler)
     server.debugger = debugger_connection
 
-    debugger_thread = threading.Thread(
-        target=_DebuggerConnection.debugger_thread_main, args=(debugger_connection,)
-    )
+    debugger_thread = threading.Thread(target=_DebuggerConnection.debugger_thread_main, args=(debugger_connection,))
 
     try:
         debugger_thread.start()
